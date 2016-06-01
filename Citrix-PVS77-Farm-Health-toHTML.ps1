@@ -424,7 +424,7 @@ else { $PVStests.Active = "Error","inactive" }
   
 #Check PVS deviceCount
 $numberofdevices = $serverstatus.DeviceCount
-if ($numberofdevices -gt 1) { $PVStests.deviceCount = "SUCCESS", " $numberofdevices active" }
+if ($numberofdevices -ge 1) { $PVStests.deviceCount = "SUCCESS", " $numberofdevices active" }
 else { $PVStests.deviceCount = "WARNING","No devices on this server" }
 "Number of devices: $numberofdevices" | LogMe -display -progress
 
