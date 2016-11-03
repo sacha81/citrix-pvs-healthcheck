@@ -1,5 +1,5 @@
 #==============================================================================================
-# Created on: 12/2015            Version: 1.2
+# Created on: 12/2015            Version: 1.3
 # Created by: Sacha Thomet, blog.appcloud.ch / sachathomet.ch
 # Filename: Citrix-PVS77-Farm-Health-toHTML.ps1
 #
@@ -11,7 +11,7 @@
 #
 # Prerequisite: Script must run on a PVS server, where PVS snap-in is registered with this command:
 # 1. set-alias installutil C:\Windows\Microsoft.NET\Framework64\v4.0.30319\installutil.exe
-# 2. installutil “C:\Program Files\Citrix\Provisioning Services Console\Citrix.PVS.SnapIn.dll”
+# 2. installutil "C:\Program Files\Citrix\Provisioning Services Console\Citrix.PVS.SnapIn.dllâ€
 # 3. Add-PSSnapin Citrix*
 #
 # Call by : Scheduled Task, e.g. once a day
@@ -26,6 +26,13 @@
 #      	V1.1: Performance-Update, Timeout for get-content personality.ini, Target-Device table at latest in report
 #      	V1.2: - Bug fixes (vDisk state, if one vDisk version is proper synced background is green)
 #      		  - Free Disk Space on PVS Servers (Thanks to Jay )
+#      	V1.3: Add some modifications to make the script similar to XD-XD Healt Check
+#      		  - Variable $EnvironmentName added like XD-XA script to "generate" header
+#      		  - Created timestamp report as variable $ReportDate
+#      		  - $EnvName and $emailSubject redefined in the report generation
+#      		  - Configuration via an XML file
+#      		  - Redefined display the date for the report
+#      		  - Replaced generate the date in the second place by variable
 #
 #==============================================================================================
 if ((Get-PSSnapin "Citrix.PVS.SnapIn" -EA silentlycontinue) -eq $null) {
@@ -34,29 +41,81 @@ catch { write-error "Error loading Citrix.PVS.SnapIn PowerShell snapin"; Return 
 }
 # Change the below variables to suit your environment
 #==============================================================================================
+# Import Variables from XML:
+If (![string]::IsNullOrEmpty($hostinvocation)) {
+	[string]$Script:ScriptPath = [System.IO.Path]::GetDirectoryName([System.Windows.Forms.Application]::ExecutablePath)
+	[string]$Script:ScriptFile = [System.IO.Path]::GetFileName([System.Windows.Forms.Application]::ExecutablePath)
+	[string]$Script:ScriptName = [System.IO.Path]::GetFileNameWithoutExtension([System.Windows.Forms.Application]::ExecutablePath)
+} ElseIf ($Host.Version.Major -lt 3) {
+	[string]$Script:ScriptPath = Split-Path -parent $MyInvocation.MyCommand.Definition
+	[string]$Script:ScriptFile = Split-Path -Leaf $script:MyInvocation.MyCommand.Path
+	[string]$Script:ScriptName = $ScriptFile.Split('.')[0].Trim()
+} Else {
+	[string]$Script:ScriptPath = $PSScriptRoot
+	[string]$Script:ScriptFile = Split-Path -Leaf $PSCommandPath
+	[string]$Script:ScriptName = $ScriptFile.Split('.')[0].Trim()
+}
+
+#Set-StrictMode -Version Latest
+
+# Import parameter file
+$Script:ParameterFile = $ScriptName + "_Parameters.xml"
+$Script:ParameterFilePath = $ScriptPath
+[xml]$cfg = Get-Content ($ParameterFilePath + "\" + $ParameterFile) # Read content of XML file
+
+# Import variables
+Function New-XMLVariables {
+	# Create a variable reference to the XML file
+	$cfg.Settings.Variables.Variable | foreach {
+		# Set Variables contained in XML file
+		$VarValue = $_.Value
+		$CreateVariable = $True # Default value to create XML content as Variable
+		switch ($_.Type) {
+			# Format data types for each variable 
+			'[string]' { $VarValue = [string]$VarValue } # Fixed-length string of Unicode characters
+			'[char]' { $VarValue = [char]$VarValue } # A Unicode 16-bit character
+			'[byte]' { $VarValue = [byte]$VarValue } # An 8-bit unsigned character
+            '[bool]' { If ($VarValue.ToLower() -eq 'false'){$VarValue = [bool]$False} ElseIf ($VarValue.ToLower() -eq 'true'){$VarValue = [bool]$True} } # An boolean True/False value
+			'[int]' { $VarValue = [int]$VarValue } # 32-bit signed integer
+			'[long]' { $VarValue = [long]$VarValue } # 64-bit signed integer
+			'[decimal]' { $VarValue = [decimal]$VarValue } # A 128-bit decimal value
+			'[single]' { $VarValue = [single]$VarValue } # Single-precision 32-bit floating point number
+			'[double]' { $VarValue = [double]$VarValue } # Double-precision 64-bit floating point number
+			'[DateTime]' { $VarValue = [DateTime]$VarValue } # Date and Time
+			'[Array]' { $VarValue = [Array]$VarValue.Split(',') } # Array
+			'[Command]' { $VarValue = Invoke-Expression $VarValue; $CreateVariable = $False } # Command
+		}
+		If ($CreateVariable) { New-Variable -Name $_.Name -Value $VarValue -Scope $_.Scope -Force }
+	}
+}
+
+New-XMLVariables
+
+$ReportDate = (Get-Date -UFormat "%A, %d. %B %Y %R")
+
 # 
 # Information about the site you want to check:    --------------------------------------------
-$siteName="site" # site name on which the according Store is.
+#$siteName="Unico Cloud" # site name on which the according Store is.
 # Target Device Health Check threshold:            --------------------------------------------
-$retrythresholdWarning= "15" # define the Threshold from how many retries the color switch to red
+#$retrythresholdWarning= "15" # define the Threshold from how many retries the color switch to red
 # 
 # Include for Device Collections, type "every" if you want to see every Collection 
 # Example1: $Collections = @("XA65","XA7")
 # Example2: $Collections = @("every")
-$Collections = @("every")
+#$Collections = @("every")
 # 
 # Information about your Email infrastructure:      --------------------------------------------
 # E-mail report details
-$emailFrom = "email@company.ch"
-$emailTo = "citrix@company.ch"#,"sacha.thomet@appcloud.ch"
-$smtpServer = "mailrelay.company.ch"
-$emailSubjectStart = "PVS Farm Report"
-$mailprio = "High"
+#$emailFrom = "email@company.ch"
+#$emailTo = "citrix@company.ch"#,"sacha.thomet@appcloud.ch"
+#$smtpServer = "mailrelay.company.ch"
+#$emailSubjectStart = "PVS Farm Report"
+#$mailprio = "High"
 # 
 # Check's &amp;amp; Jobs you want to perform
-$PerformPVSvDiskCheck = "yes"
-$PerformPVSTargetCheck = "yes"
-$PerformSendMail = "yes"
+#$PerformPVSvDiskCheck = "yes"
+#$PerformPVSTargetCheck = "yes"
+#$PerformSendMail = "yes"
 # 
 # 
 #Don't change below here if you don't know what you are doing ... 
@@ -156,7 +215,7 @@ Function CheckMemoryUsage()
 Function writeHtmlHeader
 {
 param($title, $fileName)
-$date = ( Get-Date -format R)
+$date = $ReportDate
 $head = @"
 <html>
 <head>
@@ -729,51 +788,84 @@ $tests = @{}
 #HTML function
 function WriteHTML() {
  
-# ======= Write all results to an html file =================================================
-Write-Host ("Saving results to html report: " + $resultsHTM)
-writeHtmlHeader "PVS Farm Report $global:farmname_short" $resultsHTM
+    # ======= Write all results to an html file =================================================
+    Write-Host ("Saving results to html report: " + $resultsHTM)
+    # STBE writeHtmlHeader "PVS Farm Report $global:farmname_short" $resultsHTM
+    #$EnvironmentName = "$EnvironmentName $global:farmname_short"
+    writeHtmlHeader "$EnvName" $resultsHTM
 
-if ($PerformPVSvDiskCheck -eq "yes") {
-writeTableHeader $resultsHTM $vDiksFirstheaderName $vDiskheaderNames $vDiskheaderWidths $vDisktablewidth
-$global:vdiskResults | sort-object -property ReplState | % { writeData $vdiskResults $resultsHTM $vDiskheaderNames }
-writeTableFooter $resultsHTM
-}
+    if ($PerformPVSvDiskCheck -eq "yes") {
+    writeTableHeader $resultsHTM $vDiksFirstheaderName $vDiskheaderNames $vDiskheaderWidths $vDisktablewidth
+    $global:vdiskResults | sort-object -property ReplState | % { writeData $vdiskResults $resultsHTM $vDiskheaderNames }
+    writeTableFooter $resultsHTM
+    }
 
-writeTableHeader $resultsHTM $PVSFirstheaderName $PVSheaderNames $PVSheaderWidths $PVStablewidth
-$global:PVSResults | sort-object -property PVServerName_short | % { writeData $PVSResults $resultsHTM $PVSheaderNames}
-writeTableFooter $resultsHTM
+    writeTableHeader $resultsHTM $PVSFirstheaderName $PVSheaderNames $PVSheaderWidths $PVStablewidth
+    $global:PVSResults | sort-object -property PVServerName_short | % { writeData $PVSResults $resultsHTM $PVSheaderNames}
+    writeTableFooter $resultsHTM
  
-writeTableHeader $resultsHTM $PVSFirstFarmheaderName $PVSFarmHeaderNames $PVSFarmWidths $PVSFarmTablewidth
-$global:PVSFarmResults | % { writeData $PVSFarmResults $resultsHTM $PVSFarmHeaderNames}
-writeTableFooter $resultsHTM
+    writeTableHeader $resultsHTM $PVSFirstFarmheaderName $PVSFarmHeaderNames $PVSFarmWidths $PVSFarmTablewidth
+    $global:PVSFarmResults | % { writeData $PVSFarmResults $resultsHTM $PVSFarmHeaderNames}
+    writeTableFooter $resultsHTM
 
-if ($PerformPVSTargetCheck -eq "yes") {
-writeTableHeader $resultsHTM $TargetFirstheaderName $TargetheaderNames $TargetheaderWidths $TargetTablewidth
-$allResults | sort-object -property collectionName | % { writeData $allResults $resultsHTM $TargetheaderNames}
-writeTableFooter $resultsHTM
-}
+    if ($PerformPVSTargetCheck -eq "yes") {
+    writeTableHeader $resultsHTM $TargetFirstheaderName $TargetheaderNames $TargetheaderWidths $TargetTablewidth
+    $allResults | sort-object -property collectionName | % { writeData $allResults $resultsHTM $TargetheaderNames}
+    writeTableFooter $resultsHTM
+    }
 
-
-
-writeHtmlFooter $resultsHTM
-#send email
-$emailSubject = ("$emailSubjectStart - $global:farmname_short - " + (Get-Date -format R))
-$global:mailMessageParameters = @{
-From = $emailFrom
-To = $emailTo
-Subject = $emailSubject
-SmtpServer = $smtpServer
-Body = (gc $resultsHTM) | Out-String
-Attachment = $resultsHTM
-}
+    writeHtmlFooter $resultsHTM
+# STBE    #send email
+# STBE    $emailSubject = ("$emailSubjectStart - $global:farmname_short - " + (Get-Date -format R))
+# STBE    $global:mailMessageParameters = @{
+# STBE        From = $emailFrom
+# STBE        To = $emailTo
+# STBE        Subject = $emailSubject
+# STBE        SmtpServer = $smtpServer
+# STBE        Body = (gc $resultsHTM) | Out-String
+# STBE        Attachment = $resultsHTM
+# STBE    }
 }
 #==============================================================================================
 #Mail function
 # Send mail 
 function SendMail() {
-Send-MailMessage @global:mailMessageParameters -BodyAsHtml -Priority $mailprio
-}
+    Param (
+        [Parameter(
+            Mandatory = $True,
+            Position = 0,
+            ValueFromPipeline = $True
+        )]
+        [System.String[]]
+        $Subject
+    )
+    #send email
+    $emailMessage = New-Object System.Net.Mail.MailMessage
+    $emailMessage.From = $emailFrom
+    $emailMessage.To.Add( $emailTo )
+    $emailMessage.Subject = $Subject
+    $emailMessage.IsBodyHtml = $true
+    $emailMessage.Body = (gc $resultsHTM) | Out-String
+    $emailMessage.Attachments.Add($resultsHTM)
+    $emailMessage.Priority = ($emailPrio)
 
+    $smtpClient = New-Object System.Net.Mail.SmtpClient( $smtpServer , $smtpServerPort )
+    $smtpClient.EnableSsl = $smtpEnableSSL
+
+    # If you added username an password, add this to smtpClient
+    If ((![string]::IsNullOrEmpty($smtpUser)) -and (![string]::IsNullOrEmpty($smtpPW))){
+	    $pass = $smtpPW | ConvertTo-SecureString -key $smtpKey
+	    $cred = New-Object System.Management.Automation.PsCredential($smtpUser,$pass)
+
+	    $Ptr = [System.Runtime.InteropServices.Marshal]::SecureStringToCoTaskMemUnicode($cred.Password)
+	    $smtpUserName = $cred.Username
+	    $smtpPassword = [System.Runtime.InteropServices.Marshal]::PtrToStringUni($Ptr)
+
+	    $smtpClient.Credentials = New-Object System.Net.NetworkCredential( $smtpUserName , $smtpPassword );
+    }
+
+    $smtpClient.Send( $emailMessage )
+}
 
 
 #==============================================================================================
@@ -783,8 +875,10 @@ $scriptstart = Get-Date
 rm $logfile -force -EA SilentlyContinue
 "Begin with Citrix Provisioning Services HealthCheck" | LogMe -display -progress
 " " | LogMe -display -progress
- 
+
 Farmcheck
+$EnvName = "$EnvironmentName $farmname_short"
+$emailSubject = ("$EnvName - " + $ReportDate)
  
 if ($PerformPVSTargetCheck -eq "yes") {
 "Initiate PVS Target check" | LogMe
@@ -803,9 +897,10 @@ PVSvDiskCheck
 PVSServerCheck
 WriteHTML
 
+
 if ($PerformSendMail -eq "yes") {
 "Initiate send of Email " | LogMe
-SendMail
+SendMail -Subject $emailSubject
 } else {
 "send of Email  skipped" | LogMe
 }
@@ -815,5 +910,3 @@ $scriptruntime =  $scriptend - $scriptstart | select TotalSeconds
 $scriptruntimeInSeconds = $scriptruntime.TotalSeconds
 #Write-Host $scriptruntime.TotalSeconds
 "Script was running for $scriptruntimeInSeconds " | LogMe -display -progress
-
-
