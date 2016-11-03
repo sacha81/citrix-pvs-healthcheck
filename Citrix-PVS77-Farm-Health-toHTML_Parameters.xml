@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8"?>
+<settings>
+	<Variables>
+<!-- Global -->
+		<Variable>
+			<!-- Define a EnvironmentName e.g. Integration/Production etc. - this will be used in HTML & Email Subject -->
+			<Name>EnvironmentName</Name>
+			<Value>PVS Farm Report Prod</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Information about the site you want to check: site name on which the according Store is. -->
+			<Name>siteName</Name>
+			<Value>site</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Target Device Health Check threshold: define the Threshold from how many retries the color switch to red -->
+			<Name>retrythresholdWarning</Name>
+			<Value>15</Value>
+			<Type>[array]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+
+		<Variable>
+			<!-- Include for Device Collections, type "every" if you want to see every Collection
+				 Example1: $Collections = @("XA65","XA7")
+                                 Example2: $Collections = @("every") -->
+			<Name>Collections</Name> <!-- Add Collection separated by comma -->
+			<Value>every</Value>
+			<Type>[array]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+<!-- Check's &amp;amp; Jobs you want to perform -->
+		<Variable>
+			<!--  -->
+			<Name>PerformPVSvDiskCheck</Name>
+			<Value>yes</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!--  -->
+			<Name>PerformPVSTargetCheck</Name>
+			<Value>yes</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!--  -->
+			<Name>PerformSendMail</Name>
+			<Value>yes</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+<!-- E-Mail Configuration -->
+		<Variable>
+			<!-- Address of the sender -->
+			<Name>emailFrom</Name>
+			<Value>citrix@mycompany.ch</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Address of the recipient -->
+			<Name>emailTo</Name>
+			<Value>citrix@mycompany.ch</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- IP or name of SMTP server  -->
+			<Name>smtpServer</Name>
+			<Value>mailrelay.mycompany.ch</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Port of SMTP server -->
+			<Name>smtpServerPort</Name>
+			<Value>25</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Use ssl for SMTP or not -->
+			<Name>smtpEnableSSL</Name>
+			<Value>False</Value> <!-- False or True -->
+			<Type>[bool]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Priority of email -->
+			<Name>emailPrio</Name>
+			<Value>Low</Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Username -->
+			<Name>smtpUser</Name>
+			<Value></Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Key for password encryption -->
+			<Name>smtpKey</Name>
+			<Value>7,13,25,32,42,64,72,88,91,55,88,55,77,59,22,82,200,0,3,88,10,55,93,244</Value>
+			<Type>[array]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
+			<!-- Password
+				 Create password with follow two lines
+				 $Credential = Get-Credential
+				 $credential.Password | ConvertFrom-SecureString -Key $smtpKey -->
+			<Name>smtpPW</Name>
+			<Value></Value>
+			<Type>[string]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+	</Variables>
+</settings>
