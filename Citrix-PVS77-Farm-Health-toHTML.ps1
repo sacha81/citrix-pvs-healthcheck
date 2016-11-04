@@ -35,11 +35,13 @@
 #      		  - Replaced generate the date in the second place by variable
 #
 #==============================================================================================
+
+#Don't change below here if you don't know what you are doing ... 
+#==============================================================================================
 if ((Get-PSSnapin "Citrix.PVS.SnapIn" -EA silentlycontinue) -eq $null) {
 try { Add-PSSnapin Citrix.PVS.SnapIn -ErrorAction Stop }
 catch { write-error "Error loading Citrix.PVS.SnapIn PowerShell snapin"; Return }
 }
-# Change the below variables to suit your environment
 #==============================================================================================
 # Import Variables from XML:
 If (![string]::IsNullOrEmpty($hostinvocation)) {
@@ -92,33 +94,6 @@ Function New-XMLVariables {
 New-XMLVariables
 
 $ReportDate = (Get-Date -UFormat "%A, %d. %B %Y %R")
-
-# 
-# Information about the site you want to check:    --------------------------------------------
-#$siteName="Unico Cloud" # site name on which the according Store is.
-# Target Device Health Check threshold:            --------------------------------------------
-#$retrythresholdWarning= "15" # define the Threshold from how many retries the color switch to red
-# 
-# Include for Device Collections, type "every" if you want to see every Collection 
-# Example1: $Collections = @("XA65","XA7")
-# Example2: $Collections = @("every")
-#$Collections = @("every")
-# 
-# Information about your Email infrastructure:      --------------------------------------------
-# E-mail report details
-#$emailFrom = "email@company.ch"
-#$emailTo = "citrix@company.ch"#,"sacha.thomet@appcloud.ch"
-#$smtpServer = "mailrelay.company.ch"
-#$emailSubjectStart = "PVS Farm Report"
-#$mailprio = "High"
-# 
-# Check's &amp;amp; Jobs you want to perform
-#$PerformPVSvDiskCheck = "yes"
-#$PerformPVSTargetCheck = "yes"
-#$PerformSendMail = "yes"
-# 
-# 
-#Don't change below here if you don't know what you are doing ... 
 #==============================================================================================
  
 $currentDir = Split-Path $MyInvocation.MyCommand.Path
