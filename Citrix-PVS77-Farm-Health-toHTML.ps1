@@ -11,7 +11,7 @@
 #
 # Prerequisite: Script must run on a PVS server, where PVS snap-in is registered with this command:
 # 1. set-alias installutil C:\Windows\Microsoft.NET\Framework64\v4.0.30319\installutil.exe
-# 2. installutil "C:\Program Files\Citrix\Provisioning Services Console\Citrix.PVS.SnapIn.dllâ€
+# 2. installutil "C:\Program Files\Citrix\Provisioning Services Console\Citrix.PVS.SnapIn.dll"
 # 3. Add-PSSnapin Citrix*
 #
 # Call by : Scheduled Task, e.g. once a day
