@@ -698,7 +698,7 @@ $tests = @{}
 		$short_DeviceWriteCacheType = $diskinfo.WriteCacheType
 		
 		#if (test-path \\$targetName\c$\Personality.ini)
-		if ($short_DeviceWriteCacheType = "4")
+		if ($short_DeviceWriteCacheType -eq "4")
 		{
 
 			$wconhd = ""
