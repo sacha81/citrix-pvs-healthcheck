@@ -137,8 +137,8 @@ $Targettablewidth = 1200
 if ($PerformPVSvDiskCheck -eq "yes") {
 #Header for Table 2 "vDisk Checks"
 $vDiksFirstheaderName = "vDiskName"
-$vDiskheaderNames = "Store", "vDiskFileName", "deviceCount", "CreateDate" , "ReplState", "LoadBalancingAlgorithm", "WriteCacheType"
-$vDiskheaderWidths = "4", "8", "2","4", "4", "4", "4"
+$vDiskheaderNames = "Site", "Store", "vDiskFileName", "deviceCount", "CreateDate" , "ReplState", "LoadBalancingAlgorithm", "WriteCacheType"
+$vDiskheaderWidths = "4","4", "8", "2","4", "4", "4", "4"
 $vDisktablewidth = 1200
 }
 
@@ -499,7 +499,7 @@ function PVSvDiskCheck() {
 	"Check PVS vDisks" | LogMe -display -progress
 	" " | LogMe -display -progress
 	
-	$AllvDisks = Get-PvsDiskInfo
+	$AllvDisks = Get-PvsDiskInfo -SiteName $siteName
 	$global:vdiskResults = @{}
 	
 	foreach($vDisk in $AllvDisks )
@@ -510,14 +510,21 @@ function PVSvDiskCheck() {
 		$vDiskName = $vDisk | %{ $_.Name }
 		"Name of vDisk: $vDiskName" | LogMe -display -progress
 		$vDiskName
+    
+        #VdiskSite
+		$VdiskSite = $vDisk | %{ $_.sitename }
+		"vDiskDtore: $VdiskSite" | LogMe -display -progress
+		$VDtests.Site = "NEUTRAL", $VdiskSite
 		
 		#VdiskStore
 		$vDiskStore = $vDisk | %{ $_.StoreName }
 		"vDiskDtore: $vDiskStore" | LogMe -display -progress
 		$VDtests.Store = "NEUTRAL", $vDiskStore
+
+        
 		
 			#Get details of each version of the vDisk: 
-			$vDiskVersions = Get-PvsDiskVersion -Name $vDiskName -SiteName $SiteName -StoreName $vDiskStore
+			$vDiskVersions = Get-PvsDiskVersion -Name $vDiskName -SiteName $VdiskSite -StoreName $vDiskStore
 			
 			$vDiskVersionTable = @{}
 			foreach($diskVersion in $vDiskVersions){
@@ -630,8 +637,10 @@ function PVSvDiskCheck() {
 			else{
 			$VDtests.LoadBalancingAlgorithm = "ERROR", "No LoadBalancing! Server is fix assigned to $vDiskfixServerName"}
 			
+            #image name adds Site name in multi site reports
+            if ($siteName.count -ne 1) {$global:vdiskResults."$vDiskName ($VdiskSite)" = $VDtests}
+            else {$global:vdiskResults.$vDiskName = $VDtests}
 
-		$global:vdiskResults.$vDiskName = $VDtests
 		}
 	
 
@@ -697,20 +706,21 @@ $tests = @{}
 		$diskinfo = Get-PvsDiskInfo -DiskLocatorId $short_diskLocatorID
 		$short_DeviceWriteCacheType = $diskinfo.WriteCacheType
 		
-		#if (test-path \\$targetName\c$\Personality.ini)
-		if ($short_DeviceWriteCacheType = "4")
+		if (test-path \\$targetName\c$\Personality.ini) #checks if Personality file is present and accessible and then checks 3 WCtypes
+		#if ($short_DeviceWriteCacheType -eq "4")
 		{
 
 			$wconhd = ""
 			
-			$job = Start-Job {
-			$wconhd = Get-Content \\$targetName\c$\Personality.ini | Where-Object  {$_.Contains("WriteCacheType=4") }
-			}
-			$res = Wait-Job $job -timeout 3
-			if(-not $res) {Write-Host "Timeout"}
+			#$job = Start-Job { #Job-Created but never received
+			$wconhd = Get-Content \\$targetName\c$\Personality.ini | Where-Object  {$_.Contains("WriteCacheType") }
+			#}
+			#$res = Wait-Job $job -timeout 3
+			#if(-not $res) {Write-Host "Timeout"}
 
 			
-			If ($wconhd -match "$WriteCacheType=4") {Write-Host Cache on HDD
+			If ($wconhd -eq '$WriteCacheType=4')
+			{Write-Host Cache on HDD
 			
 			#WWC on HD is $wconhd
 
@@ -756,7 +766,68 @@ $tests = @{}
 				}   
 			
 			}
-			else 
+			elseif ($wconhd -eq '$WriteCacheType=9')
+            		{
+            			Write-Host Cache on RAM with overflow
+				#RAMCache
+				#Get-RamCache from each target, code from Matthew Nics http://mattnics.com/?p=414
+				$RAMCache = [math]::truncate((Get-WmiObject Win32_PerfFormattedData_PerfOS_Memory -ComputerName $targetName).PoolNonPagedBytes /1MB)
+			
+            			# Relative path to the PVS vDisk write cache file
+				$PvsWriteCache   = "d$\vdiskdif.vhdx"
+				# Size of the local PVS write cache drive
+				$PvsWriteMaxSize = 10gb # size in GB
+			
+				$PvsWriteCacheUNC = Join-Path "\\$targetName" $PvsWriteCache 
+				$CacheDiskexists  = Test-Path $PvsWriteCacheUNC
+				if ($CacheDiskexists -eq $True)
+				{
+					$CacheDisk = [long] ((get-childitem $PvsWriteCacheUNC -force).length)
+					$CacheDiskGB = "{0:n2} GB" -f($CacheDisk / 1GB)
+					"PVS Cache file size: {0:n2} GB" -f($CacheDisk / 1GB) | LogMe
+					#"PVS Cache max size: {0:n2}GB" -f($PvsWriteMaxSize / 1GB) | LogMe -display
+					if($CacheDisk -lt ($PvsWriteMaxSize * 0.5))
+					{
+					   "WriteCache file size is low" | LogMe
+					   $tests.WriteCache = "SUCCESS", $CacheDiskGB
+					}
+					elseif($CacheDisk -lt ($PvsWriteMaxSize * 0.8))
+					{
+					   "WriteCache file size moderate" | LogMe -display -warning
+					   $HDDwarning = $true
+					   $tests.WriteCache = "WARNING", $CacheDiskGB
+					}   
+					else
+					{
+					   "WriteCache file size is high" | LogMe -display -error
+                        		   $HDDerror = $true
+					   $tests.WriteCache = "ERORR", $CacheDiskGB
+					}
+				}              
+			   
+				$Cachedisk = 0
+			   
+				$VDISKImage = get-content \\$targetName\c$\Personality.ini | Select-String "Diskname" | Out-String | % { $_.substring(12)}
+				if($VDISKImage -Match $DefaultVDISK){
+					"Default vDisk detected" | LogMe
+					$tests.vDisk = "SUCCESS", $VDISKImage
+				} else {
+					"vDisk unknown"  | LogMe -display -error
+					$tests.vDisk = "SUCCESS", $VDISKImage
+				}  
+
+                #merge HDD and RAM data
+                if ($HDDwarning)
+                {$tests.WriteCache = "WARNING", "$CacheDiskGB, $RamCache MB on Ram"}
+                elseif ($HDDerror)
+                {$tests.WriteCache = "ERORR", "$CacheDiskGB, $RamCache MB on Ram"}
+                else
+                {$tests.WriteCache = "SUCCESS", "$CacheDiskGB, $RamCache MB on Ram"}
+                 
+
+
+            }
+			elseif ($wconhd -eq '$WriteCacheType=3')
 			{Write-Host Cache on Ram
 			
 			#RAMCache
@@ -764,6 +835,11 @@ $tests = @{}
 			$RAMCache = [math]::truncate((Get-WmiObject Win32_PerfFormattedData_PerfOS_Memory -ComputerName $targetName).PoolNonPagedBytes /1MB)
 			$tests.WriteCache = "Neutral", "$RamCache MB on Ram"
 		
+			}
+			else
+			{
+			Write-Host Cache on Ram
+			$tests.WriteCache = "WARNING", "Other WriteCache Type"
 			}
 		
 		}

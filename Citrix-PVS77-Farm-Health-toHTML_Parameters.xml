@@ -13,7 +13,7 @@
 			<!-- Information about the site you want to check: site name on which the according Store is. -->
 			<Name>siteName</Name>
 			<Value>site</Value>
-			<Type>[string]</Type>
+			<Type>[array]</Type>
 			<Scope>Script</Scope>
 		</Variable>
 		<Variable>
