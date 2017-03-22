@@ -137,8 +137,8 @@ $Targettablewidth = 1200
 if ($PerformPVSvDiskCheck -eq "yes") {
 #Header for Table 2 "vDisk Checks"
 $vDiksFirstheaderName = "vDiskName"
-$vDiskheaderNames = "Store", "vDiskFileName", "deviceCount", "CreateDate" , "ReplState", "LoadBalancingAlgorithm", "WriteCacheType"
-$vDiskheaderWidths = "4", "8", "2","4", "4", "4", "4"
+$vDiskheaderNames = "Site", "Store", "vDiskFileName", "deviceCount", "CreateDate" , "ReplState", "LoadBalancingAlgorithm", "WriteCacheType"
+$vDiskheaderWidths = "4","4", "8", "2","4", "4", "4", "4"
 $vDisktablewidth = 1200
 }
 
@@ -499,7 +499,7 @@ function PVSvDiskCheck() {
 	"Check PVS vDisks" | LogMe -display -progress
 	" " | LogMe -display -progress
 	
-	$AllvDisks = Get-PvsDiskInfo
+	$AllvDisks = Get-PvsDiskInfo -SiteName $siteName
 	$global:vdiskResults = @{}
 	
 	foreach($vDisk in $AllvDisks )
@@ -510,14 +510,21 @@ function PVSvDiskCheck() {
 		$vDiskName = $vDisk | %{ $_.Name }
 		"Name of vDisk: $vDiskName" | LogMe -display -progress
 		$vDiskName
+    
+        #VdiskSite
+		$VdiskSite = $vDisk | %{ $_.sitename }
+		"vDiskDtore: $VdiskSite" | LogMe -display -progress
+		$VDtests.Site = "NEUTRAL", $VdiskSite
 		
 		#VdiskStore
 		$vDiskStore = $vDisk | %{ $_.StoreName }
 		"vDiskDtore: $vDiskStore" | LogMe -display -progress
 		$VDtests.Store = "NEUTRAL", $vDiskStore
+
+        
 		
 			#Get details of each version of the vDisk: 
-			$vDiskVersions = Get-PvsDiskVersion -Name $vDiskName -SiteName $SiteName -StoreName $vDiskStore
+			$vDiskVersions = Get-PvsDiskVersion -Name $vDiskName -SiteName $VdiskSite -StoreName $vDiskStore
 			
 			$vDiskVersionTable = @{}
 			foreach($diskVersion in $vDiskVersions){
@@ -630,8 +637,10 @@ function PVSvDiskCheck() {
 			else{
 			$VDtests.LoadBalancingAlgorithm = "ERROR", "No LoadBalancing! Server is fix assigned to $vDiskfixServerName"}
 			
+            #image name adds Site name in multi site reports
+            if ($siteName.count -ne 1) {$global:vdiskResults."$vDiskName ($VdiskSite)" = $VDtests}
+            else {$global:vdiskResults.$vDiskName = $VDtests}
 
-		$global:vdiskResults.$vDiskName = $VDtests
 		}
 	
 
