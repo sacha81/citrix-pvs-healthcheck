@@ -122,8 +122,10 @@ $ReportDate = (Get-Date -UFormat "%A, %d. %B %Y %R")
 #==============================================================================================
  
 $currentDir = Split-Path $MyInvocation.MyCommand.Path
-$logfile = Join-Path $currentDir ("PVSHealthCheck.log")
-$resultsHTM = Join-Path $currentDir ("PVSFarmReport.htm")
+$outputpath = Join-Path $currentDir "" #add here a custom output folder if you wont have it on the same directory
+$outputdate = Get-Date -Format 'yyyyMMddHHmm'
+$logfile = Join-Path $outputpath ("PVSHealthCheck.log")
+$resultsHTM = Join-Path $outputpath ("PVSFarmReport.htm") #add $outputdate in filename if you like
 $errorsHTM = Join-Path $currentDir ("PVSHealthCheckErrors.htm") 
 
 if ($PerformPVSTargetCheck -eq "yes") {
@@ -144,9 +146,18 @@ $vDisktablewidth = 1200
 
 #Header for Table 3 "PV Server"
 $PVSfirstheaderName = "PVS Server"
-$PVSHeaderNames = "Ping", "Active", "deviceCount","SoapService","StreamService","TFTPService","CFreespace","DFreespace","AvgCPU","MemUsg"
-$PVSheaderWidths = "8", "4", "4","4","4","4","4","4","4","4"
+$PVSHeaderNames = "Ping", "Active", "deviceCount","SoapService","StreamService","TFTPService"
+$PVSheaderWidths = "8", "4", "4","4","4","4"
 $PVStablewidth = 800
+foreach ($disk in $diskLetters)
+{
+    $PVSHeaderNames += "$($disk)Freespace"
+    $PVSheaderWidths += "4"
+}
+$PVSHeaderNames += "AvgCPU","MemUsg"
+$PVSheaderWidths += "4","4"
+
+
 #Header for Table 4 "Farm"
 $PVSFirstFarmheaderName = "Farm"
 $PVSFarmHeaderNames = "DBServerName", "DatabaseName", "OfflineDB", "LicenseServer"
@@ -439,36 +450,24 @@ else { $PVStests.Ping = "SUCCESS", $result
         else { "Memory usage is Critical [ $UsedMemory % ]" | LogMe -error; $PVStests.MemUsg = "ERROR", "$UsedMemory %" }   
 		$UsedMemory = 0  
 
-        # Check C Disk Usage 
-        $HardDisk = Get-WmiObject Win32_LogicalDisk -ComputerName $PVServerName_short -Filter "DeviceID='C:'" | Select-Object Size,FreeSpace 
-        $DiskTotalSize = $HardDisk.Size 
-        $DiskFreeSpace = $HardDisk.FreeSpace 
-        $frSpace=[Math]::Round(($DiskFreeSpace/1073741824),2)
+        foreach ($disk in $diskLetters)
+        {
+            # Check Disk Usage 
+            $HardDisk = Get-WmiObject Win32_LogicalDisk -ComputerName $PVServerName_short -Filter "DeviceID='$($disk):'" | Select-Object Size,FreeSpace 
+            $DiskTotalSize = $HardDisk.Size 
+            $DiskFreeSpace = $HardDisk.FreeSpace 
+            $frSpace=[Math]::Round(($DiskFreeSpace/1073741824),2)
 
-        $PercentageDS = (($DiskFreeSpace / $DiskTotalSize ) * 100); $PercentageDS = "{0:N2}" -f $PercentageDS 
+            $PercentageDS = (($DiskFreeSpace / $DiskTotalSize ) * 100); $PercentageDS = "{0:N2}" -f $PercentageDS 
 
-        If ( [int] $PercentageDS -gt 15) { "Disk Free is normal [ $PercentageDS % ]" | LogMe -display; $PVStests.CFreespace = "SUCCESS", "$frSpace GB" } 
-		ElseIf ([int] $PercentageDS -lt 15) { "Disk Free is Low [ $PercentageDS % ]" | LogMe -warning; $PVStests.CFreespace = "WARNING", "$frSpace GB" }     
-		ElseIf ([int] $PercentageDS -lt 5) { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests.CFreespace = "ERROR", "$frSpace GB" } 
-		ElseIf ([int] $PercentageDS -eq 0) { "Disk Free test failed" | LogMe -error; $PVStests.CFreespace = "ERROR", "Err" } 
-        Else { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests.CFreespace = "ERROR", "$frSpace GB" }   
-        $PercentageDS = 0 
+            If ( [int] $PercentageDS -gt 15) { "Disk Free is normal [ $PercentageDS % ]" | LogMe -display; $PVStests."$($disk)Freespace" = "SUCCESS", "$frSpace GB" } 
+		    ElseIf ([int] $PercentageDS -lt 15) { "Disk Free is Low [ $PercentageDS % ]" | LogMe -warning; $PVStests."$($disk)Freespace" = "WARNING", "$frSpace GB" }     
+		    ElseIf ([int] $PercentageDS -lt 5) { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests."$($disk)Freespace" = "ERROR", "$frSpace GB" } 
+		    ElseIf ([int] $PercentageDS -eq 0) { "Disk Free test failed" | LogMe -error; $PVStests."$($disk)Freespace" = "ERROR", "Err" } 
+            Else { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests."$($disk)Freespace" = "ERROR", "$frSpace GB" }   
+            $PercentageDS = 0   
+        }
 
-        # Check D Disk Usage 
-        $DHardDisk = Get-WmiObject Win32_LogicalDisk -ComputerName $PVServerName_short -Filter "DeviceID='D:'" | Select-Object Size,FreeSpace 
-        $DDiskTotalSize = $DHardDisk.Size 
-        $DDiskFreeSpace = $DHardDisk.FreeSpace 
-        $DfrSpace=[Math]::Round(($DDiskFreeSpace/1073741824),2)
-        $PercentageDS = (($DDiskFreeSpace / $DDiskTotalSize ) * 100); $PercentageDS = "{0:N2}" -f $PercentageDS 
-
-        If ( [int] $PercentageDS -gt 15) { "Disk Free is normal [ $PercentageDS % ]" | LogMe -display; $PVStests.DFreespace = "SUCCESS", "$DfrSpace GB" } 
-    ElseIf ([int] $PercentageDS -lt 15) { "Disk Free is Low [ $PercentageDS % ]" | LogMe -warning; $PVStests.DFreespace = "WARNING", "$DfrSpace GB" }     
-    ElseIf ([int] $PercentageDS -lt 5) { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests.DFreespace = "ERROR", "$DfrSpace GB" } 
-    ElseIf ([int] $PercentageDS -eq 0) { "Disk Free test failed" | LogMe -error; $PVStests.DFreespace = "ERROR", "Err" } 
-        Else { "Disk Free is Critical [ $PercentageDS % ]" | LogMe -error; $PVStests.DFreespace = "ERROR", "$DfrSpace GB" }   
-    
-
-        $PercentageDS = 0 
 
    
   
