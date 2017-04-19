@@ -17,6 +17,13 @@
 			<Scope>Script</Scope>
 		</Variable>
 		<Variable>
+			<!-- Information about the disk you want to check. -->
+			<Name>diskLetters</Name>
+			<Value>C,D,F</Value>
+			<Type>[array]</Type>
+			<Scope>Script</Scope>
+		</Variable>
+		<Variable>
 			<!-- Target Device Health Check threshold: define the Threshold from how many retries the color switch to red -->
 			<Name>retrythresholdWarning</Name>
 			<Value>15</Value>
