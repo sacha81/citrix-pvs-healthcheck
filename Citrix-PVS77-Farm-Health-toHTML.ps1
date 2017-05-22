@@ -217,10 +217,9 @@ Function CheckMemoryUsage()
     	$TotalRAM = $SystemInfo.TotalVisibleMemorySize/1MB 
     	$FreeRAM = $SystemInfo.FreePhysicalMemory/1MB 
     	$UsedRAM = $TotalRAM - $FreeRAM 
-    	$RAMPercentUsed = ($UsedRAM / $TotalRAM) * 100 
-    	$RAMPercentUsed = "{0:N2}" -f $RAMPercentUsed
+    	$RAMPercentUsed = ($UsedRAM / $TotalRAM)
     	return $RAMPercentUsed
-	} Catch { "Error returned while checking the Memory usage. Perfmon Counters may be fault" | LogMe -error; return 101 } 
+	} Catch { "Error returned while checking the Memory usage. Perfmon Counters may be fault" | LogMe -error; return 1.01f } 
 }
 #==============================================================================================
 Function writeHtmlHeader
@@ -443,11 +442,11 @@ else { $PVStests.Ping = "SUCCESS", $result
 
         # Check the Physical Memory usage       
         $UsedMemory = CheckMemoryUsage ($PVServerName_short)
-        if( [int] $UsedMemory -lt 75) { "Memory usage is normal [ $UsedMemory % ]" | LogMe -display; $PVStests.MemUsg = "SUCCESS", "$UsedMemory %" }
-		elseif([int] $UsedMemory -lt 85) { "Memory usage is medium [ $UsedMemory % ]" | LogMe -warning; $PVStests.MemUsg = "WARNING", "$UsedMemory %" }   	
-		elseif([int] $UsedMemory -lt 95) { "Memory usage is high [ $UsedMemory % ]" | LogMe -error; $PVStests.MemUsg = "ERROR", "$UsedMemory %" }
-		elseif([int] $UsedMemory -eq 101) { "Memory usage test failed" | LogMe -error; $PVStests.MemUsg = "ERROR", "Err" }
-        else { "Memory usage is Critical [ $UsedMemory % ]" | LogMe -error; $PVStests.MemUsg = "ERROR", "$UsedMemory %" }   
+        if( $UsedMemory -lt 0.75) { "Memory usage is normal [ {0:p2} ]" -f $UsedMemory | LogMe -display; $PVStests.MemUsg = "SUCCESS", "{0:p2} ]" -f $UsedMemory }
+		elseif($UsedMemory -lt 0.85) { "Memory usage is medium [ {0:p2} ]" -f $UsedMemory | LogMe -warning; $PVStests.MemUsg = "WARNING", "{0:p2} ]" -f $UsedMemory }   	
+		elseif($UsedMemory -lt 0.95) { "Memory usage is high [ {0:p2} ]" -f $UsedMemory | LogMe -error; $PVStests.MemUsg = "ERROR", "{0:p2} ]" -f $UsedMemory }
+		elseif($UsedMemory -eq 1.01) { "Memory usage test failed" | LogMe -error; $PVStests.MemUsg = "ERROR", "Err" }
+        else { "Memory usage is Critical [ {0:p2} ]" -f $UsedMemory | LogMe -error; $PVStests.MemUsg = "ERROR", "{0:p2} ]" -f $UsedMemory }   
 		$UsedMemory = 0  
 
         foreach ($disk in $diskLetters)
