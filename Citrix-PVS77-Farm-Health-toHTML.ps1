@@ -1,5 +1,5 @@
 #==============================================================================================
-# Created on: 12/2015            Version: 1.3
+# Created on: 12/2015            Version: 1.3.1
 # Created by: Sacha Thomet, blog.appcloud.ch / sachathomet.ch
 # Filename: Citrix-PVS77-Farm-Health-toHTML.ps1
 #
@@ -33,6 +33,8 @@
 #      		  - Configuration via an XML file
 #      		  - Redefined display the date for the report
 #      		  - Replaced generate the date in the second place by variable
+#      	V1.3.1: 
+#      		  - Fix for Cache to Ram which is in yellow even then all is ok
 #
 #==============================================================================================
 
@@ -695,7 +697,7 @@ $tests = @{}
 			If ($wconhd -eq '$WriteCacheType=4')
 			{Write-Host Cache on HDD
 			
-			#WWC on HD is $wconhd
+			#WWC on HD is $wconhd 4=DeviceHD
 
 				# Relative path to the PVS vDisk write cache file
 				$PvsWriteCache   = "d$\.vdiskcache"
@@ -710,19 +712,21 @@ $tests = @{}
 					$CacheDiskGB = "{0:n2}GB" -f($CacheDisk / 1GB)
 					"PVS Cache file size: {0:n2}GB" -f($CacheDisk / 1GB) | LogMe
 					#"PVS Cache max size: {0:n2}GB" -f($PvsWriteMaxSize / 1GB) | LogMe -display
-					if($CacheDisk -lt ($PvsWriteMaxSize * 0.5))
+					
+
+                    if($CacheDiskGB -lt ($PvsWriteMaxSize * 0.5))
 					{
-					   "WriteCache file size is low" | LogMe
+					   "WriteCache on HD file size is low with $CacheDiskGB" | LogMe -display -progress
 					   $tests.WriteCache = "SUCCESS", $CacheDiskGB
 					}
-					elseif($CacheDisk -lt ($PvsWriteMaxSize * 0.8))
+					elseif($CacheDiskGB -lt ($PvsWriteMaxSize * 0.8))
 					{
-					   "WriteCache file size moderate" | LogMe -display -warning
+					   "WriteCache on HD file size moderate with $CacheDiskGB" | LogMe -display -warning
 					   $tests.WriteCache = "WARNING", $CacheDiskGB
 					}   
 					else
 					{
-					   "WriteCache file size is high" | LogMe -display -error
+					   "WriteCache on HD file size is high with $CacheDiskGB" | LogMe -display -error
 					   $tests.WriteCache = "ERORR", $CacheDiskGB
 					}
 				}              
@@ -742,7 +746,7 @@ $tests = @{}
 			elseif ($wconhd -eq '$WriteCacheType=9')
             		{
             			Write-Host Cache on RAM with overflow
-				#RAMCache
+				#RAMCache 9=RamOfToHD
 				#Get-RamCache from each target, code from Matthew Nics http://mattnics.com/?p=414
 				$RAMCache = [math]::truncate((Get-WmiObject Win32_PerfFormattedData_PerfOS_Memory -ComputerName $targetName).PoolNonPagedBytes /1MB)
 			
@@ -750,6 +754,9 @@ $tests = @{}
 				$PvsWriteCache   = "d$\vdiskdif.vhdx"
 				# Size of the local PVS write cache drive
 				$PvsWriteMaxSize = 10gb # size in GB
+
+                 $HDDwarning = $false
+                  $HDDerror = $false
 			
 				$PvsWriteCacheUNC = Join-Path "\\$targetName" $PvsWriteCache 
 				$CacheDiskexists  = Test-Path $PvsWriteCacheUNC
@@ -759,21 +766,22 @@ $tests = @{}
 					$CacheDiskGB = "{0:n2} GB" -f($CacheDisk / 1GB)
 					"PVS Cache file size: {0:n2} GB" -f($CacheDisk / 1GB) | LogMe
 					#"PVS Cache max size: {0:n2}GB" -f($PvsWriteMaxSize / 1GB) | LogMe -display
-					if($CacheDisk -lt ($PvsWriteMaxSize * 0.5))
+					if($CacheDiskGB -lt ($PvsWriteMaxSize * 0.5))
 					{
-					   "WriteCache file size is low" | LogMe
-					   $tests.WriteCache = "SUCCESS", $CacheDiskGB
+					   "WriteCache on RAM size is low with $CacheDiskGB" | LogMe -display -progress
+
+					    $tests.WriteCache = "SUCCESS", $CacheDiskGB
 					}
-					elseif($CacheDisk -lt ($PvsWriteMaxSize * 0.8))
+					elseif($CacheDiskGB -lt ($PvsWriteMaxSize * 0.8))
 					{
-					   "WriteCache file size moderate" | LogMe -display -warning
+					   "WriteCache on RAM size moderate with $CacheDiskGB" | LogMe -display -warning
 					   $HDDwarning = $true
 					   $tests.WriteCache = "WARNING", $CacheDiskGB
 					}   
 					else
 					{
-					   "WriteCache file size is high" | LogMe -display -error
-                        		   $HDDerror = $true
+					   "WriteCache on RAM  size is high with $CacheDiskGB" | LogMe -display -error
+                       $HDDerror = $true
 					   $tests.WriteCache = "ERORR", $CacheDiskGB
 					}
 				}              
