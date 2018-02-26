@@ -1,5 +1,5 @@
 #==============================================================================================
-# Created on: 12/2015            Version: 1.3.1
+# Created on: 12/2015            Version: 1.3.2
 # Created by: Sacha Thomet, blog.appcloud.ch / sachathomet.ch
 # Filename: Citrix-PVS77-Farm-Health-toHTML.ps1
 #
@@ -35,6 +35,8 @@
 #      		  - Replaced generate the date in the second place by variable
 #      	V1.3.1: 
 #      		  - Fix for Cache to Ram which is in yellow even then all is ok
+#      	V1.3.2: 
+#      		  - Fix for WriteCache High background not red on Error #21
 #
 #==============================================================================================
 
@@ -727,7 +729,7 @@ $tests = @{}
 					else
 					{
 					   "WriteCache on HD file size is high with $CacheDiskGB" | LogMe -display -error
-					   $tests.WriteCache = "ERORR", $CacheDiskGB
+					   $tests.WriteCache = "ERROR", $CacheDiskGB
 					}
 				}              
 			   
@@ -782,7 +784,7 @@ $tests = @{}
 					{
 					   "WriteCache on RAM  size is high with $CacheDiskGB" | LogMe -display -error
                        $HDDerror = $true
-					   $tests.WriteCache = "ERORR", $CacheDiskGB
+					   $tests.WriteCache = "ERROR", $CacheDiskGB
 					}
 				}              
 			   
@@ -801,7 +803,7 @@ $tests = @{}
                 if ($HDDwarning)
                 {$tests.WriteCache = "WARNING", "$CacheDiskGB, $RamCache MB on Ram"}
                 elseif ($HDDerror)
-                {$tests.WriteCache = "ERORR", "$CacheDiskGB, $RamCache MB on Ram"}
+                {$tests.WriteCache = "ERROR", "$CacheDiskGB, $RamCache MB on Ram"}
                 else
                 {$tests.WriteCache = "SUCCESS", "$CacheDiskGB, $RamCache MB on Ram"}
                  
