@@ -2,7 +2,9 @@
 Citrix PVS Healthcheck 
 
 If you are Using PVS 1909 or a newer Version you need Citrix-PVS-Farm-Health-toHTML.ps1 and Citrix-PVS-Farm-Health-toHTML_Parameters.xml
-For PVS 7.7 until 1906 (7.22) you need Citrix-PVS77-Farm-Health-toHTML.ps1 and Citrix-PVS77-Farm-Health-toHTML_Parameters.xml
+<br>
+for PVS 7.7 until 1906 (7.22) you need Citrix-PVS77-Farm-Health-toHTML.ps1 and Citrix-PVS77-Farm-Health-toHTML_Parameters.xml
+<br>
 for even older PVS Version (7.6 and below) use the Script here: http://blog.sachathomet.ch/citrix-pvs-healthcheck
 
 
