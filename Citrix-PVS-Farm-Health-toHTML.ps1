@@ -1,5 +1,5 @@
 #==============================================================================================
-# Created on: 12/2015            Version: 1.4
+# Created on: 12/2015            Version: 1.4.1
 # Created by: Sacha Thomet, sachathomet.ch
 # Filename: Citrix-PVS-Farm-Health-toHTML.ps1
 #
@@ -40,6 +40,7 @@
 #      	V1.4:  Version for PVS 1909 or greater - Use 1.3.2 if you are on lower versions!  
 #      		  - Make use of new WMI Provider for vDisk_PVS, WriteCache, BootTime and PVSClientVersion
 #
+#      	V1.4.1:  Hightlight higher retries on Target devices  in HTML output
 #==============================================================================================
 
 #Don't change below here if you don't know what you are doing ... 
@@ -675,11 +676,24 @@ $tests = @{}
 		$tests.PVSClientVersion = "NEUTRAL", "$TargetSw"
 
 		
-		$targetNamePvsDeviceStatus = Get-PvsDeviceStatus -Name $targetName
-		
-		$RetryStatus = $targetNamePvsDeviceStatus.Status
-		"Retry: $RetryStatus" | LogMe -display -progress
-		$tests.Retry = "NEUTRAL", "$RetryStatus"
+        $targetNamePvsDeviceStatus = Get-PvsDeviceStatus -Name $targetName
+        
+        $RetryStatus = $targetNamePvsDeviceStatus.Status
+        "Retry: $RetryStatus" | LogMe -display -progress
+        #$tests.Retry = "NEUTRAL", "$RetryStatus"
+
+        # Farbformatierung basierend auf RetryStatus
+         $RetryNumber = [int]$targetNamePvsDeviceStatus.Status
+
+        if ($RetryNumber -le 100) {
+            $tests.Retry = "NEUTRAL", "$RetryStatus"
+        } elseif ($RetryNumber -le 1000) {
+            $tests.Retry = "WARNING", "$RetryStatus"
+        } else {
+            $tests.Retry = "ERROR", "$RetryStatus"
+        }
+
+
 		
 		 # Ping target 
 		$result = Ping $targetName 100
